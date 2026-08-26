@@ -57,15 +57,7 @@ export default defineConfig({
       },
 
       workbox: {
-        // --- App shell: cache-first for everything Vite bundles ---
-        // These are hashed JS/CSS chunks — safe to serve from cache forever.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-
-        // --- ONNX model: custom NetworkFirst route ---
-        // The model is ~120 MB. We use a dedicated Cache Storage bucket
-        // ('studymate-models') so it survives browser restarts independently
-        // of the Workbox precache. NetworkFirst means it tries the network
-        // once (catches model updates), then falls back to cache offline.
+        
         runtimeCaching: [
           {
             // Match the quantized ONNX model file
