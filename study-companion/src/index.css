@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+
+@theme {
+  --color-bg: #fafaf8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f2ee;
+  --color-border: #e5e3dc;
+  --color-text-primary: #1c1c1a;
+  --color-text-secondary: #6b6a64;
+  --color-text-tertiary: #9c9a92;
+  --color-accent: #2f5d50;
+  --color-accent-soft: #e8efec;
+  --color-danger: #b3261e;
+
+  /* Emotion state colours */
+  --color-frustrated-bg: #fdeeee;
+  --color-frustrated-text: #b3261e;
+  --color-frustrated-dot: #d4453c;
+  --color-confused-bg: #fdf3e7;
+  --color-confused-text: #9a5b13;
+  --color-confused-dot: #e0922f;
+  --color-bored-bg: #f0f0f0;
+  --color-bored-text: #5f5f5f;
+  --color-bored-dot: #9a9a9a;
+  --color-engaged-bg: #eaf6ee;
+  --color-engaged-text: #1e7a3d;
+  --color-engaged-dot: #2fa854;
+
+  --font-display: 'Source Serif 4', Georgia, serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
+}
+
+/* Dark mode overrides — applied when <html class="dark"> */
+.dark {
+  --color-bg: #0f0f0e;
+  --color-surface: #222220;
+  --color-surface-muted: #2a2a27;
+  --color-border: #363632;
+  --color-text-primary: #eeecea;
+  --color-text-secondary: #9a9890;
+  --color-text-tertiary: #5e5d58;
+  --color-accent: #4a8c78;
+  --color-accent-soft: #1a2e28;
+  --color-danger: #e06c6c;
+
+  /* Emotion badge backgrounds need to be darker in dark mode */
+  --color-frustrated-bg: #2e1a1a;
+  --color-frustrated-text: #e08080;
+  --color-frustrated-dot: #c45a5a;
+  --color-confused-bg: #2a2010;
+  --color-confused-text: #c49050;
+  --color-confused-dot: #b07830;
+  --color-bored-bg: #1e1e1c;
+  --color-bored-text: #888880;
+  --color-bored-dot: #606058;
+  --color-engaged-bg: #0e2218;
+  --color-engaged-text: #4aaa6a;
+  --color-engaged-dot: #38884e;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    font-family: var(--font-body);
+    color: var(--color-text-primary);
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  input:focus, button:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  
+  /* Hide scrollbar while keeping scroll behaviour */
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+@keyframes studymate-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+@keyframes studymate-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes studymate-wave {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1); }
+}
+@keyframes studymate-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; }
+}
