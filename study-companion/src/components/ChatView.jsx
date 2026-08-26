@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import EmotionBadge from './EmotionBadge';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
-import InputBar from './InputBar';
+import InputBar from './inputBar';
 import { FiSun, FiMoon } from 'react-icons/fi';
 import { LuBookOpenText, LuMenu } from 'react-icons/lu';
 
