@@ -10,6 +10,7 @@ import { LuBookOpenText, LuMenu } from 'react-icons/lu';
 /**
  * ChatView
  * 
+ * made changes to input bar to include live preview text and recording state
  * Main conversation surface. Header has the session title, emotion badge,
  * and on mobile — the menu button and dark mode toggle (since the sidebar
  * is hidden on mobile and that's where the toggle normally lives).
