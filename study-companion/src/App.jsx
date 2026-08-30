@@ -8,7 +8,7 @@ import { generateAdaptiveResponse } from './ai/responseGenerator';
 import { db, createSession, addMessage, renameSession, finaliseSession } from './db/db';
 
 import Sidebar from './components/Sidebar';
-import ChatView from './components/ChatView';
+import ChatView from './components/chatview.jsx';
 import MobileDrawer from './components/MobileDrawer';
 
 const MOBILE_BREAKPOINT = 768;
@@ -428,7 +428,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden font-body">
+    <div className="flex h-dvh w-full overflow-hidden font-body">
       {!isMobile && <Sidebar {...sidebarProps} />}
 
       {isMobile && (

@@ -7,14 +7,7 @@ import { FiSun, FiMoon } from 'react-icons/fi';
 import { LuBookOpenText, LuMenu } from 'react-icons/lu';
 
 
-/**
- * ChatView
- * 
- * made changes to input bar to include live preview text and recording state
- * Main conversation surface. Header has the session title, emotion badge,
- * and on mobile — the menu button and dark mode toggle (since the sidebar
- * is hidden on mobile and that's where the toggle normally lives).
- */
+
 export default function ChatView({
   sessionTitle,
   sessionSubject,
@@ -33,17 +26,40 @@ export default function ChatView({
 }) {
   const scrollRef = useRef(null);
 
+  // Scroll to bottom when messages change or pipeline stage updates
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, pipelineStage]);
 
+  // Re-scroll when the virtual keyboard opens or closes.
+  // visualViewport fires a resize event as the keyboard animates in —
+  // scrolling at that point keeps the latest message visible and the
+  // InputBar immediately above the keyboard.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const handleViewportResize = () => {
+      if (scrollRef.current) {
+        // Small timeout lets the browser finish repositioning the layout
+        // before we scroll, otherwise we scroll to the pre-keyboard bottom.
+        setTimeout(() => {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }, 50);
+      }
+    };
+
+    vv.addEventListener('resize', handleViewportResize);
+    return () => vv.removeEventListener('resize', handleViewportResize);
+  }, []);
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-bg min-w-0">
+    <div className="flex-1 flex flex-col h-dvh bg-bg min-w-0 overflow-hidden">
 
       {/* Header */}
-      <div className="border-b border-border px-5 py-3.5 flex items-center justify-between gap-2.5 bg-surface">
+      <div className="border-b border-border px-5 py-3.5 flex items-center justify-between gap-2.5 bg-surface shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           {onOpenMenu && (
             <button
@@ -67,7 +83,7 @@ export default function ChatView({
         <div className="flex items-center gap-2 shrink-0">
           <EmotionBadge emotionalState={currentEmotionalState} />
 
-          {/* Dark mode toggle — visible on mobile (desktop toggle is in sidebar) */}
+          {/* Dark mode toggle — visible on mobile only (desktop toggle is in sidebar) */}
           {onOpenMenu && (
             <button
               onClick={onToggleTheme}
@@ -75,7 +91,7 @@ export default function ChatView({
               className="p-1.5 rounded-lg bg-surface-muted text-text-secondary cursor-pointer
                          border-none hover:text-text-primary transition-colors"
             >
-            {isDark ? (
+              {isDark ? (
                 <FiSun className="w-3.75 h-3.75" aria-hidden="true" />
               ) : (
                 <FiMoon className="w-3.75 h-3.75" aria-hidden="true" />
@@ -85,8 +101,12 @@ export default function ChatView({
         </div>
       </div>
 
-      {/* Messages — hide-scrollbar removes the native scrollbar while keeping scroll behaviour */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-3.5 hide-scrollbar">
+      {/* Messages — flex-1 takes all remaining space between header and InputBar.
+          hide-scrollbar removes the native scrollbar while keeping scroll behaviour. */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-3.5 hide-scrollbar"
+      >
         {messages.length === 0 && !pipelineStage && <EmptyState />}
 
         {messages.map((msg) => (
@@ -103,15 +123,18 @@ export default function ChatView({
         {pipelineStage && <TypingIndicator stage={pipelineStage} />}
       </div>
 
-      {/* Input */}
-      <InputBar
-        isRecording={isRecording}
-        isProcessing={isProcessing}
-        onStartRecording={onStartRecording}
-        onStopRecording={onStopRecording}
-        onSubmitText={onSubmitText}
-        livePreviewText={livePreviewText}
-      />
+      {/* InputBar — shrink-0 keeps it at its natural height and never lets
+          flex compress it when the message list grows. */}
+      <div className="shrink-0">
+        <InputBar
+          isRecording={isRecording}
+          isProcessing={isProcessing}
+          onStartRecording={onStartRecording}
+          onStopRecording={onStopRecording}
+          onSubmitText={onSubmitText}
+          livePreviewText={livePreviewText}
+        />
+      </div>
     </div>
   );
 }
@@ -120,7 +143,7 @@ function EmptyState() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center text-center px-5 py-10">
       <div className="w-12 h-12 rounded-2xl bg-accent-soft flex items-center justify-center mb-3.5">
-        <LuBookOpenText className="text-accent text-base" w-6 h-6 aria-hidden="true" />
+        <LuBookOpenText className="text-accent text-base w-6 h-6" aria-hidden="true" />
       </div>
       <p className="font-display text-base text-text-primary mb-1.5 m-0">
         What are we studying today?
