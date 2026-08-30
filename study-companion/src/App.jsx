@@ -8,7 +8,7 @@ import { generateAdaptiveResponse } from './ai/responseGenerator';
 import { db, createSession, addMessage, renameSession, finaliseSession } from './db/db';
 
 import Sidebar from './components/Sidebar';
-import ChatView from './components/chatview.jsx';
+import ChatView from './components/ChatView';
 import MobileDrawer from './components/MobileDrawer';
 
 const MOBILE_BREAKPOINT = 768;

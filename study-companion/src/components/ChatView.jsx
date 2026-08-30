@@ -7,7 +7,23 @@ import { FiSun, FiMoon } from 'react-icons/fi';
 import { LuBookOpenText, LuMenu } from 'react-icons/lu';
 
 
-
+/**
+ * ChatView
+ *
+ * Main conversation surface. Header has the session title, emotion badge,
+ * and on mobile — the menu button and dark mode toggle.
+ *
+ * Mobile keyboard fixes applied here:
+ *
+ * 1. Root div uses `h-[100dvh]` (dynamic viewport height) instead of `h-full`
+ *    or `h-screen`. dvh shrinks when the virtual keyboard opens, so the
+ *    InputBar stays pinned above the keyboard rather than sliding under it.
+ *
+ * 2. A `visualViewport` resize listener fires whenever the keyboard
+ *    opens/closes and scrolls the message list to the bottom. This prevents
+ *    the double-tap issue where the textarea appears off-screen after the
+ *    keyboard raises the viewport.
+ */
 export default function ChatView({
   sessionTitle,
   sessionSubject,
