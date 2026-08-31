@@ -45,7 +45,7 @@ async function getClassifier() {
 
   classifier = await pipeline(
     'text-classification',
-    'sentiment',
+    'Shrewdd/studymate-sentiment',
     {
       // Do NOT pass local_files_only — let env.allowRemoteModels handle fallback
       progress_callback: (progress) => {
