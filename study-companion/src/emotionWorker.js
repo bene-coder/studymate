@@ -1,25 +1,21 @@
 import { pipeline, env } from '@huggingface/transformers';
 
 // ── Model loading strategy ────────────────────────────────────────────────
-// Local dev:  model lives at public/models/sentiment/ → loads instantly
-// Vercel:     .onnx excluded from git → falls back to Hugging Face download,
-//             then Service Worker caches it for all subsequent visits.
-//
-// env.allowLocalModels  = true  → always try local first (fast path)
-// env.allowRemoteModels = true  → fall back to HF hub if local not found
-// local_files_only is NOT passed → let the library decide based on env flags
+// Local dev:  model lives at public/models/sentiment/ → 'sentiment' resolves
+//             to /models/sentiment/ via env.localModelPath
+// Vercel:     .onnx not in repo → pulls 'Shrewdd/studymate-sentiment' from
+//             Hugging Face hub, then Service Worker caches it for future visits.
 
 const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
+// Local: use the files on disk. Remote: allow HF hub download.
 env.allowLocalModels  = true;
-env.allowRemoteModels = true;          // needed on Vercel where .onnx isn't bundled
+env.allowRemoteModels = !IS_LOCAL;   // only allow remote on Vercel
 env.localModelPath    = '/models/';
 
-// On local dev, also set the cache dir so Transformers.js finds the model
-// at the correct path without a network round-trip.
-if (IS_LOCAL) {
-  env.cacheDir = '/models/';
-}
+// 'sentiment' → /models/sentiment/ on local dev
+// 'Shrewdd/studymate-sentiment' → HF hub on Vercel
+const MODEL_ID = IS_LOCAL ? 'sentiment' : 'Shrewdd/studymate-sentiment';
 
 let classifier = null;
 let isLoading  = false;
@@ -45,9 +41,8 @@ async function getClassifier() {
 
   classifier = await pipeline(
     'text-classification',
-    'Shrewdd/studymate-sentiment',
+    MODEL_ID,
     {
-      // Do NOT pass local_files_only — let env.allowRemoteModels handle fallback
       progress_callback: (progress) => {
         if (progress.status === 'initiate') {
           self.postMessage({

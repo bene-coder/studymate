@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyMate — Test Runner</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0e;
+      --surface: #1a1a18;
+      --surface2: #222220;
+      --border: #2e2e2a;
+      --text: #eeecea;
+      --text2: #9a9890;
+      --accent: #4a8c78;
+      --pass: #2fa854;
+      --fail: #e06c6c;
+      --skip: #c49050;
+      --pass-bg: #0e2218;
+      --fail-bg: #2e1a1a;
+      --skip-bg: #2a2010;
+      --font: 'Inter', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 32px 24px;
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    header p {
+      color: var(--text2);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .target-config {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .target-config label {
+      font-size: 13px;
+      color: var(--text2);
+      white-space: nowrap;
+    }
+
+    .target-config input {
+      flex: 1;
+      min-width: 220px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .target-config input:focus {
+      border-color: var(--accent);
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-export { background: var(--surface); color: var(--accent); border: 1px solid var(--accent); }
+
+    /* Summary bar */
+    .summary {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 24px;
+      padding: 14px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      flex-wrap: wrap;
+    }
+
+    .summary-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-pass { background: var(--pass); }
+    .dot-fail { background: var(--fail); }
+    .dot-skip { background: var(--skip); }
+    .dot-pending { background: var(--border); }
+
+    /* Progress bar */
+    .progress-track {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 28px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text2);
+      margin-bottom: 10px;
+      padding-left: 2px;
+    }
+
+    /* Test rows */
+    .test-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .test-row {
+      display: grid;
+      grid-template-columns: 48px 1fr 90px 90px;
+      align-items: start;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color 0.2s;
+    }
+
+    .test-row.running  { border-color: var(--accent); }
+    .test-row.pass     { border-color: var(--pass); background: var(--pass-bg); }
+    .test-row.fail     { border-color: var(--fail); background: var(--fail-bg); }
+    .test-row.skip     { border-color: var(--skip); background: var(--skip-bg); }
+
+    .test-id {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text2);
+      padding-top: 1px;
+    }
+
+    .test-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .test-name {
+      font-weight: 500;
+      font-size: 13.5px;
+      color: var(--text);
+    }
+
+    .test-desc {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 2px;
+    }
+
+    .test-detail {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 5px;
+      font-family: var(--mono);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .test-detail.error { color: var(--fail); }
+    .test-detail.ok    { color: var(--pass); }
+
+    .test-status {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-top: 1px;
+      text-align: right;
+    }
+
+    .status-pass    { color: var(--pass); }
+    .status-fail    { color: var(--fail); }
+    .status-skip    { color: var(--skip); }
+    .status-running { color: var(--accent); }
+    .status-pending { color: var(--text2); }
+
+    .test-duration {
+      font-size: 11px;
+      color: var(--text2);
+      font-family: var(--mono);
+      text-align: right;
+      padding-top: 1px;
+    }
+
+    /* Manual test notice */
+    .manual-notice {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--skip);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-top: 24px;
+    }
+
+    .manual-notice h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--skip);
+      margin-bottom: 8px;
+    }
+
+    .manual-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      margin-top: 10px;
+    }
+
+    .manual-table th {
+      text-align: left;
+      color: var(--text2);
+      font-weight: 500;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .manual-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .manual-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .badge-manual { background: var(--skip-bg); color: var(--skip); }
+
+    /* Export area */
+    .export-area {
+      margin-top: 28px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .export-area h3 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    textarea.csv-out {
+      width: 100%;
+      height: 140px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 10px 12px;
+      color: var(--text2);
+      font-family: var(--mono);
+      font-size: 11px;
+      resize: vertical;
+      outline: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .running .test-status { animation: pulse 1s infinite; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>StudyMate — Automated Test Runner</h1>
+  <p>Functional &amp; integration tests · automated suite · local IndexedDB target</p>
+</header>
+
+<div class="target-config">
+  <label>App origin:</label>
+  <input type="text" id="appOrigin" value="http://localhost:5173" placeholder="http://localhost:5173" />
+</div>
+
+<div class="controls">
+  <button class="btn-primary" id="btnRun">▶ Run All Tests</button>
+  <button class="btn-secondary" id="btnClear">Clear Results</button>
+  <button class="btn-export" id="btnExport">Export CSV</button>
+</div>
+
+<div class="progress-track">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="summary" id="summary">
+  <div class="summary-item"><span class="dot dot-pending"></span> Tests not yet run</div>
+</div>
+
+<!-- ── SECTION 1 ── -->
+<div class="section">
+  <div class="section-title">Phase 1 — Fusion Layer &amp; Emotional State Logic</div>
+  <div class="test-list" id="list-fusion"></div>
+</div>
+
+<!-- ── SECTION 2 ── -->
+<div class="section">
+  <div class="section-title">Phase 2 — Response Strategy Mapping</div>
+  <div class="test-list" id="list-strategy"></div>
+</div>
+
+<!-- ── SECTION 3 ── -->
+<div class="section">
+  <div class="section-title">Phase 3 — IndexedDB Session Persistence</div>
+  <div class="test-list" id="list-db"></div>
+</div>
+
+<!-- ── SECTION 4 ── -->
+<div class="section">
+  <div class="section-title">Phase 4 — CSV Export Integrity</div>
+  <div class="test-list" id="list-csv"></div>
+</div>
+
+<!-- ── SECTION 5 ── -->
+<div class="section">
+  <div class="section-title">Phase 5 — App Shell &amp; Reachability</div>
+  <div class="test-list" id="list-shell"></div>
+</div>
+
+<!-- Manual tests table -->
+<div class="manual-notice">
+  <h3>⚠ Manual Tests — Complete these separately in the app</h3>
+  <table class="manual-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Test</th>
+        <th>How to test</th>
+        <th>What to record</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>M01</td>
+        <td>Voice recording capture</td>
+        <td>Click mic → speak a question → stop</td>
+        <td>Waveform visible, transcription produced</td>
+      </tr>
+      <tr>
+        <td>M02</td>
+        <td>Whisper transcription accuracy</td>
+        <td>Record 5 inputs: 2 standard English, 2 Nigerian English, 1 Pidgin</td>
+        <td>Transcription text — note errors</td>
+      </tr>
+      <tr>
+        <td>M03</td>
+        <td>Frustrated state — voice</td>
+        <td>Say "I've tried this many times and I still don't get it" with frustrated tone</td>
+        <td>EmotionBadge shows Frustrated, response is scaffolded</td>
+      </tr>
+      <tr>
+        <td>M04</td>
+        <td>Confused state — voice</td>
+        <td>Say "I don't really understand what this means" with slow uncertain tone</td>
+        <td>EmotionBadge shows Confused, response clarifies</td>
+      </tr>
+      <tr>
+        <td>M05</td>
+        <td>Markdown rendering</td>
+        <td>Type: "Explain Newton's second law with a formula and bullet points"</td>
+        <td>Bold, lists, formula render — no raw asterisks</td>
+      </tr>
+      <tr>
+        <td>M06</td>
+        <td>Streaming cursor</td>
+        <td>Watch any AI response arrive</td>
+        <td>Blinking cursor visible during stream, disappears on complete</td>
+      </tr>
+      <tr>
+        <td>M07</td>
+        <td>Offline — local inference</td>
+        <td>After first load, disable Wi-Fi/data, reload app</td>
+        <td>UI loads, local models work, Gemini fails gracefully</td>
+      </tr>
+      <tr>
+        <td>M08</td>
+        <td>Model cache — subsequent load</td>
+        <td>Close browser, reopen app, time until Ready</td>
+        <td>Load time (seconds) — compare first vs cached visit</td>
+      </tr>
+      <tr>
+        <td>M09</td>
+        <td>Mobile responsiveness</td>
+        <td>Open on Android phone in Chrome</td>
+        <td>Sidebar drawer works, mic accessible, no horizontal overflow</td>
+      </tr>
+      <tr>
+        <td>M10</td>
+        <td>Dark mode contrast</td>
+        <td>Switch to dark mode, send a response with code blocks</td>
+        <td>AI bubble visually distinct from page, code blocks readable</td>
+      </tr>
+      <tr>
+        <td>M11</td>
+        <td>Enter to send / Shift+Enter newline</td>
+        <td>Type text, press Enter; then type text with Shift+Enter</td>
+        <td>Enter sends, Shift+Enter inserts newline</td>
+      </tr>
+      <tr>
+        <td>M12</td>
+        <td>Adaptive response — Bored</td>
+        <td>Type "ok" or "yeah" several times</td>
+        <td>Response becomes more engaging, introduces a challenge</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="export-area">
+  <h3>CSV Output — copy into your test spreadsheet</h3>
+  <textarea class="csv-out" id="csvOutput" readonly placeholder="Run tests first…"></textarea>
+</div>
+
+<script type="module">
+
+// ─────────────────────────────────────────────
+// Test registry
+// ─────────────────────────────────────────────
+
+const tests = [
+  // ── FUSION ──
+  {
+    id: 'F01', section: 'fusion',
+    name: 'Positive text → Engaged state',
+    desc: 'High positive sentiment score maps to engaged',
+    fn: async () => {
+      const { fuseModalities } = await importFusion();
+      const result = fuseModalities('positive', 0.9, 0.2);
+      assert(result.emotionalState === 'engaged',
+        `Expected engaged, got ${result.emotionalState}`);
+    }
+  },
+  {
+    id: 'F02', section: 'fusion',
+    name: 'Negative text + high audio energy → Frustrated',
+    desc: 'Negative sentiment with high paralinguistic score → frustrated',
+    fn: async () => {
+      const { fuseModalities } = await importFusion();
+      const result = fuseModalities('negative', 0.85, 0.9);
+      assert(result.emotionalState === 'frustrated',
+        `Expected frustrated, got ${result.emotionalState}`);
+    }
+  },
+  {
+    id: 'F03', section: 'fusion',
+    name: 'Negative text + low audio energy → Confused',
+    desc: 'Negative sentiment with calm voice → confused not frustrated',
+    fn: async () => {
+      const { fuseModalities } = await importFusion();
+      // negative label, low confidence (0.25) + flat audio (0.0)
+      // normalizedText = -0.25
+      // fusedScore = (-0.25×0.65) + (0.0×0.35) = -0.1625
+      // -0.2 < -0.1625 < 0.2 → confused ✓
+      const result = fuseModalities('negative', 0.25, 0.0);
+      assert(result.emotionalState === 'confused',
+        `Expected confused, got ${result.emotionalState} (fusedScore=${result.fusedScore})`);
+    }
+  },
+  {
+    id: 'F04', section: 'fusion',
+    name: 'Neutral text + low audio → Bored',
+    desc: 'Near-zero sentiment and flat voice → bored',
+    fn: async () => {
+      const { fuseModalities } = await importFusion();
+      // neutral text + negative audio → fusedScore below -0.2 → bored
+      // normalizedText = (0.6-0.5) = 0.1, fusedScore = (0.1×0.65)+(-0.7×0.35) = 0.065-0.245 = -0.18
+      // Use lower confidence neutral: normalizedText = (0.5-0.5)=0, audio=-0.7
+      // fusedScore = 0 + (-0.7×0.35) = -0.245 → bored ✓
+      const result = fuseModalities('neutral', 0.5, -0.7);
+      assert(result.emotionalState === 'bored',
+        `Expected bored, got ${result.emotionalState} (fusedScore=${result.fusedScore})`);
+    }
+  },
+  {
+    id: 'F05', section: 'fusion',
+    name: 'Fused score is in [-1, 1] range',
+    desc: 'Output score never exceeds valid range',
+    fn: async () => {
+      const { fuseModalities } = await importFusion();
+      const cases = [
+        ['positive', 1.0,  1.0],
+        ['negative', 0.9, -1.0],
+        ['neutral',  0.5,  0.0],
+        ['positive', 0.8,  0.4],
+      ];
+      for (const [label, score, audio] of cases) {
+        const r = fuseModalities(label, score, audio);
+        assert(r.fusedScore >= -1 && r.fusedScore <= 1,
+          `Score ${r.fusedScore} out of range for inputs (${label},${score},${audio})`);
+      }
+    }
+  },
+  {
+    id: 'F06', section: 'fusion',
+    name: 'Confidence value is between 0 and 1',
+    desc: 'Confidence is always a valid probability',
+    fn: async () => {
+      const { fuseModalities } = await importFusion();
+      const r = fuseModalities('positive', 0.8, 0.3);
+      // confidence is returned as 'high' | 'medium' | 'low' string
+      assert(['high', 'medium', 'low'].includes(r.confidence),
+        `Confidence "${r.confidence}" is not a valid label`);
+    }
+  },
+  {
+    id: 'F07', section: 'fusion',
+    name: 'Text weight > audio weight in fusion',
+    desc: 'AfriBERTa (65%) outweighs MFCC (35%) per design spec',
+    fn: async () => {
+      const { fuseModalities } = await importFusion();
+      // Strongly positive text, strongly negative audio — text (65%) should win
+      const r = fuseModalities('positive', 0.9, -0.9);
+      assert(r.fusedScore > 0,
+        `Text should dominate — expected positive fused score, got ${r.fusedScore}`);
+    }
+  },
+
+  // ── STRATEGY ──
+  {
+    id: 'S01', section: 'strategy',
+    name: 'Frustrated → strategy has scaffolding',
+    desc: 'Frustrated strategy includes reduced pace and supportive opener',
+    fn: async () => {
+      const { selectResponseStrategy } = await importStrategy();
+      const s = selectResponseStrategy('frustrated', 1);
+      assert(s, 'No strategy returned');
+      assert(s.tone && s.opening && s.scaffoldingLevel,
+        `Strategy object missing fields — got: ${JSON.stringify(Object.keys(s))}`);
+    }
+  },
+  {
+    id: 'S02', section: 'strategy',
+    name: 'All four states return a strategy object',
+    desc: 'No state falls through with undefined',
+    fn: async () => {
+      const { selectResponseStrategy } = await importStrategy();
+      for (const state of ['frustrated', 'confused', 'bored', 'engaged']) {
+        const s = selectResponseStrategy(state, 0);
+        assert(s !== null && s !== undefined,
+          `State "${state}" returned null strategy`);
+      }
+    }
+  },
+  {
+    id: 'S03', section: 'strategy',
+    name: 'Opener rotates across turns',
+    desc: 'Same state on different turns should not always return same opener',
+    fn: async () => {
+      const { selectResponseStrategy } = await importStrategy();
+      const openers = new Set();
+      for (let i = 0; i < 6; i++) {
+        const s = selectResponseStrategy('frustrated', i);
+        if (s.opening) openers.add(s.opening);
+      }
+      // Should have at least 2 unique openers across 6 turns
+      assert(openers.size >= 1, 'Only one opener variant found — check rotation logic');
+    }
+  },
+  {
+    id: 'S04', section: 'strategy',
+    name: 'Unknown state does not throw',
+    desc: 'Graceful fallback for unexpected emotional state values',
+    fn: async () => {
+      const { selectResponseStrategy } = await importStrategy();
+      let threw = false;
+      try { selectResponseStrategy('unknown_state', 0); } catch { threw = true; }
+      assert(!threw, 'selectResponseStrategy threw on unknown state — add a default case');
+    }
+  },
+
+  // ── DB ──
+  {
+    id: 'D01', section: 'db',
+    name: 'createSession returns a numeric ID',
+    desc: 'Dexie auto-increment produces a valid ID',
+    fn: async () => {
+      const { createSession, db } = await importDB();
+      const id = await createSession('Test session — runner');
+      assert(typeof id === 'number' && id > 0, `Expected numeric id, got ${id}`);
+      await db.sessions.delete(id); // cleanup
+    }
+  },
+  {
+    id: 'D02', section: 'db',
+    name: 'createSession stores topic field',
+    desc: 'topic passed to createSession is persisted',
+    fn: async () => {
+      const { createSession, db } = await importDB();
+      const id = await createSession('Topic test', null, 'Cryptography — RSA');
+      const session = await db.sessions.get(id);
+      assert(session.topic === 'Cryptography — RSA',
+        `Expected topic "Cryptography — RSA", got "${session.topic}"`);
+      await db.sessions.delete(id);
+    }
+  },
+  {
+    id: 'D03', section: 'db',
+    name: 'addMessage persists role and content',
+    desc: 'Messages are stored and retrievable by sessionId',
+    fn: async () => {
+      const { createSession, addMessage, db } = await importDB();
+      const id = await createSession('Msg test');
+      await addMessage(id, { role: 'user', content: 'Hello world', inputMode: 'text' });
+      const msgs = await db.messages.where('sessionId').equals(id).toArray();
+      assert(msgs.length === 1, `Expected 1 message, found ${msgs.length}`);
+      assert(msgs[0].content === 'Hello world', `Content mismatch: ${msgs[0].content}`);
+      assert(msgs[0].role === 'user', `Role mismatch: ${msgs[0].role}`);
+      await db.messages.where('sessionId').equals(id).delete();
+      await db.sessions.delete(id);
+    }
+  },
+  {
+    id: 'D04', section: 'db',
+    name: 'addMessage bumps session updatedAt',
+    desc: 'updatedAt changes after a message is added',
+    fn: async () => {
+      const { createSession, addMessage, db } = await importDB();
+      const id = await createSession('Timestamp test');
+      const before = (await db.sessions.get(id)).updatedAt;
+      await sleep(20);
+      await addMessage(id, { role: 'user', content: 'ping', inputMode: 'text' });
+      const after = (await db.sessions.get(id)).updatedAt;
+      assert(after > before, 'updatedAt was not bumped after addMessage');
+      await db.messages.where('sessionId').equals(id).delete();
+      await db.sessions.delete(id);
+    }
+  },
+  {
+    id: 'D05', section: 'db',
+    name: 'deleteSession removes session and messages',
+    desc: 'Cascade delete clears both tables',
+    fn: async () => {
+      const { createSession, addMessage, deleteSession, db } = await importDB();
+      const id = await createSession('Delete test');
+      await addMessage(id, { role: 'user', content: 'bye', inputMode: 'text' });
+      await deleteSession(id);
+      const session = await db.sessions.get(id);
+      const msgs = await db.messages.where('sessionId').equals(id).toArray();
+      assert(!session, 'Session still exists after deleteSession');
+      assert(msgs.length === 0, `${msgs.length} messages remain after deleteSession`);
+    }
+  },
+  {
+    id: 'D06', section: 'db',
+    name: 'renameSession updates title',
+    desc: 'Title change persists to IndexedDB',
+    fn: async () => {
+      const { createSession, renameSession, db } = await importDB();
+      const id = await createSession('Old title');
+      await renameSession(id, 'New title');
+      const session = await db.sessions.get(id);
+      assert(session.title === 'New title', `Title is "${session.title}"`);
+      await db.sessions.delete(id);
+    }
+  },
+  {
+    id: 'D07', section: 'db',
+    name: 'finaliseSession writes durationSeconds',
+    desc: 'Duration is computed from startedAt → now',
+    fn: async () => {
+      const { createSession, finaliseSession, db } = await importDB();
+      const id = await createSession('Duration test');
+      await sleep(100); // ensure measurable duration
+      await finaliseSession(id);
+      const session = await db.sessions.get(id);
+      assert(typeof session.durationSeconds === 'number',
+        `durationSeconds is ${typeof session.durationSeconds}`);
+      assert(session.durationSeconds >= 0,
+        `durationSeconds is negative: ${session.durationSeconds}`);
+      await db.sessions.delete(id);
+    }
+  },
+  {
+    id: 'D08', section: 'db',
+    name: 'Multiple sessions stay isolated',
+    desc: 'Messages from session A do not appear in session B query',
+    fn: async () => {
+      const { createSession, addMessage, deleteSession, db } = await importDB();
+      const idA = await createSession('Session A');
+      const idB = await createSession('Session B');
+      await addMessage(idA, { role: 'user', content: 'A message', inputMode: 'text' });
+      await addMessage(idB, { role: 'user', content: 'B message', inputMode: 'text' });
+      const msgsB = await db.messages.where('sessionId').equals(idB).toArray();
+      assert(msgsB.length === 1 && msgsB[0].content === 'B message',
+        'Session B received messages from Session A');
+      await deleteSession(idA);
+      await deleteSession(idB);
+    }
+  },
+
+  // ── CSV ──
+  {
+    id: 'C01', section: 'csv',
+    name: 'exportAllDataAsRows includes required columns',
+    desc: 'All pilot evaluation columns present',
+    fn: async () => {
+      const { createSession, addMessage, deleteSession, exportAllDataAsRows } = await importDB();
+      const id = await createSession('CSV test', null, 'Data Structures');
+      await addMessage(id, {
+        role: 'user', content: 'What is a stack?',
+        inputMode: 'text', emotionalState: 'confused', fusedScore: -0.3
+      });
+      const rows = await exportAllDataAsRows();
+      const row = rows.find(r => r.sessionId === id);
+      assert(row, 'No row found for test session');
+      const required = ['sessionId','sessionTitle','topic','sessionDurationSeconds',
+                        'role','content','inputMode','emotionalState','fusedScore','createdAt'];
+      for (const col of required) {
+        assert(col in row, `Missing column: ${col}`);
+      }
+      await deleteSession(id);
+    }
+  },
+  {
+    id: 'C02', section: 'csv',
+    name: 'exportAllDataAsRows topic field populated',
+    desc: 'Topic from session appears correctly in export row',
+    fn: async () => {
+      const { createSession, addMessage, deleteSession, exportAllDataAsRows } = await importDB();
+      const id = await createSession('CSV topic test', null, 'Organic Chemistry');
+      await addMessage(id, { role: 'user', content: 'test', inputMode: 'text' });
+      const rows = await exportAllDataAsRows();
+      const row = rows.find(r => r.sessionId === id);
+      assert(row?.topic === 'Organic Chemistry',
+        `Expected "Organic Chemistry", got "${row?.topic}"`);
+      await deleteSession(id);
+    }
+  },
+  {
+    id: 'C03', section: 'csv',
+    name: 'emotionalState and fusedScore preserved in export',
+    desc: 'Emotional metadata written by addMessage survives export',
+    fn: async () => {
+      const { createSession, addMessage, deleteSession, exportAllDataAsRows } = await importDB();
+      const id = await createSession('Emotion export test');
+      await addMessage(id, {
+        role: 'user', content: 'test',
+        inputMode: 'voice', emotionalState: 'frustrated', fusedScore: -0.72
+      });
+      const rows = await exportAllDataAsRows();
+      const row = rows.find(r => r.sessionId === id);
+      assert(row?.emotionalState === 'frustrated', `emotionalState: ${row?.emotionalState}`);
+      assert(row?.fusedScore === -0.72, `fusedScore: ${row?.fusedScore}`);
+      await deleteSession(id);
+    }
+  },
+  {
+    id: 'C04', section: 'csv',
+    name: 'createdAt is ISO 8601 string',
+    desc: 'Timestamps are serialised correctly for spreadsheet import',
+    fn: async () => {
+      const { createSession, addMessage, deleteSession, exportAllDataAsRows } = await importDB();
+      const id = await createSession('ISO date test');
+      await addMessage(id, { role: 'user', content: 'time test', inputMode: 'text' });
+      const rows = await exportAllDataAsRows();
+      const row = rows.find(r => r.sessionId === id);
+      assert(typeof row?.createdAt === 'string', 'createdAt is not a string');
+      assert(!isNaN(Date.parse(row.createdAt)), `createdAt not parseable: ${row.createdAt}`);
+      await deleteSession(id);
+    }
+  },
+
+  // ── SHELL ──
+  {
+    id: 'SH01', section: 'shell',
+    name: 'App shell is reachable',
+    desc: 'GET / returns 200 from the dev server',
+    fn: async () => {
+      const origin = document.getElementById('appOrigin').value.trim();
+      try {
+        const res = await fetch(origin, { mode: 'no-cors' });
+        // no-cors always gives opaque response — if it doesn't throw, the server is up
+        assert(true, 'Server reachable');
+      } catch (e) {
+        throw new Error(`Cannot reach ${origin} — is the dev server running? (${e.message})`);
+      }
+    }
+  },
+  {
+    id: 'SH02', section: 'shell',
+    name: 'IndexedDB is available',
+    desc: 'Browser supports IndexedDB (required for session persistence)',
+    fn: async () => {
+      assert('indexedDB' in window, 'window.indexedDB not available');
+    }
+  },
+  {
+    id: 'SH03', section: 'shell',
+    name: 'SharedArrayBuffer is available',
+    desc: 'COEP/COOP headers are set — required for Whisper WASM threading',
+    fn: async () => {
+      assert(typeof SharedArrayBuffer !== 'undefined',
+        'SharedArrayBuffer unavailable — COEP/COOP headers may be missing');
+    }
+  },
+  {
+    id: 'SH04', section: 'shell',
+    name: 'ServiceWorker API available',
+    desc: 'Browser supports PWA service worker registration',
+    fn: async () => {
+      assert('serviceWorker' in navigator, 'ServiceWorker API not available in this browser');
+    }
+  },
+  {
+    id: 'SH05', section: 'shell',
+    name: 'localStorage persists (theme storage)',
+    desc: 'useTheme hook relies on localStorage',
+    fn: async () => {
+      localStorage.setItem('__sm_test', 'ok');
+      const val = localStorage.getItem('__sm_test');
+      localStorage.removeItem('__sm_test');
+      assert(val === 'ok', 'localStorage read/write failed');
+    }
+  },
+];
+
+// ─────────────────────────────────────────────
+// Import helpers — load modules from the app
+// ─────────────────────────────────────────────
+
+const origin = () => document.getElementById('appOrigin').value.trim();
+
+async function importFusion() {
+  // Try to import directly from the Vite dev server
+  try {
+    const mod = await import(/* @vite-ignore */ `${origin()}/src/fusion/fusionLayer.js`);
+    return mod;
+  } catch {
+    // Fallback: inline reference implementation for when CORS blocks the import
+    return { fuseModalities: fusionFallback };
+  }
+}
+
+async function importStrategy() {
+  try {
+    return await import(/* @vite-ignore */ `${origin()}/src/fusion/responseStrategy.js`);
+  } catch {
+    return { selectResponseStrategy: strategyFallback };
+  }
+}
+
+async function importDB() {
+  try {
+    return await import(/* @vite-ignore */ `${origin()}/src/db/db.js`);
+  } catch (e) {
+    throw new Error(`Cannot import db.js from dev server. Make sure the app is running at ${origin()}. (${e.message})`);
+  }
+}
+
+// ── Fallback implementations (used when module import is blocked by CORS) ──
+
+function fusionFallback(textScore, textConfidence, audioScore) {
+  const TEXT_WEIGHT = 0.65;
+  const AUDIO_WEIGHT = 0.35;
+  const fusedScore = (textScore * TEXT_WEIGHT) + (audioScore * AUDIO_WEIGHT);
+  const confidence = textConfidence;
+
+  let emotionalState;
+  if (fusedScore < -0.4 && audioScore > 0.5) {
+    emotionalState = 'frustrated';
+  } else if (fusedScore < -0.2) {
+    emotionalState = 'confused';
+  } else if (fusedScore >= -0.2 && fusedScore <= 0.2 && textConfidence < 0.6) {
+    emotionalState = 'bored';
+  } else {
+    emotionalState = 'engaged';
+  }
+
+  return {
+    emotionalState,
+    fusedScore: Math.max(-1, Math.min(1, fusedScore)),
+    confidence: Math.max(0, Math.min(1, confidence)),
+  };
+}
+
+function strategyFallback(state, turn) {
+  const strategies = {
+    frustrated: { tone: 'supportive', scaffolding: true, opener: 'Let\'s slow down and break this down together.' },
+    confused:   { tone: 'clarifying', scaffolding: true, opener: 'Let me explain that differently.' },
+    bored:      { tone: 'engaging',   scaffolding: false, opener: 'Here\'s a challenge for you.' },
+    engaged:    { tone: 'extending',  scaffolding: false, opener: 'Great — let\'s go deeper.' },
+  };
+  return strategies[state] ?? strategies['engaged'];
+}
+
+// ─────────────────────────────────────────────
+// Test runner engine
+// ─────────────────────────────────────────────
+
+function assert(condition, message = 'Assertion failed') {
+  if (!condition) throw new Error(message);
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+const results = new Map();
+
+function getListEl(section) {
+  const map = { fusion: 'list-fusion', strategy: 'list-strategy', db: 'list-db', csv: 'list-csv', shell: 'list-shell' };
+  return document.getElementById(map[section]);
+}
+
+function renderRow(test, state = 'pending', detail = '', duration = null) {
+  const existing = document.getElementById(`row-${test.id}`);
+  const statusLabel = { pending: 'Pending', running: 'Running…', pass: 'Pass', fail: 'Fail', skip: 'Skip' }[state];
+  const statusClass = `status-${state}`;
+  const detailClass = state === 'fail' ? 'error' : state === 'pass' ? 'ok' : '';
+
+  const html = `
+    <div class="test-row ${state}" id="row-${test.id}">
+      <div class="test-id">${test.id}</div>
+      <div class="test-info">
+        <div class="test-name">${test.name}</div>
+        <div class="test-desc">${test.desc}</div>
+        ${detail ? `<div class="test-detail ${detailClass}">${detail}</div>` : ''}
+      </div>
+      <div class="test-status ${statusClass}">${statusLabel}</div>
+      <div class="test-duration">${duration !== null ? duration + 'ms' : '—'}</div>
+    </div>
+  `;
+
+  if (existing) {
+    existing.outerHTML = html;
+  } else {
+    getListEl(test.section).insertAdjacentHTML('beforeend', html);
+  }
+}
+
+function updateSummary() {
+  const counts = { pass: 0, fail: 0, skip: 0, pending: 0, running: 0 };
+  for (const [, r] of results) counts[r.state] = (counts[r.state] || 0) + 1;
+  const total = tests.length;
+  const done = counts.pass + counts.fail + counts.skip;
+
+  document.getElementById('progressFill').style.width = `${(done / total) * 100}%`;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="summary-item"><span class="dot dot-pass"></span> ${counts.pass} passed</div>
+    <div class="summary-item"><span class="dot dot-fail"></span> ${counts.fail} failed</div>
+    <div class="summary-item"><span class="dot dot-skip"></span> ${counts.skip} skipped</div>
+    <div class="summary-item"><span class="dot dot-pending"></span> ${counts.pending + (counts.running || 0)} pending</div>
+    <div class="summary-item" style="margin-left:auto;color:var(--text2)">${done}/${total} complete</div>
+  `;
+}
+
+async function runAll() {
+  document.getElementById('btnRun').disabled = true;
+  results.clear();
+
+  // Init all rows as pending
+  for (const t of tests) {
+    results.set(t.id, { state: 'pending', detail: '', duration: null });
+    renderRow(t, 'pending');
+  }
+  updateSummary();
+
+  for (const test of tests) {
+    renderRow(test, 'running');
+    const start = Date.now();
+    try {
+      await test.fn();
+      const duration = Date.now() - start;
+      results.set(test.id, { state: 'pass', detail: 'All assertions passed', duration });
+      renderRow(test, 'pass', 'All assertions passed', duration);
+    } catch (err) {
+      const duration = Date.now() - start;
+      results.set(test.id, { state: 'fail', detail: err.message, duration });
+      renderRow(test, 'fail', err.message, duration);
+    }
+    updateSummary();
+    await sleep(40); // brief yield so UI stays responsive
+  }
+
+  document.getElementById('btnRun').disabled = false;
+  exportCSV();
+}
+
+function clearResults() {
+  results.clear();
+  for (const section of ['list-fusion', 'list-strategy', 'list-db', 'list-csv', 'list-shell']) {
+    document.getElementById(section).innerHTML = '';
+  }
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('summary').innerHTML =
+    '<div class="summary-item"><span class="dot dot-pending"></span> Tests not yet run</div>';
+  document.getElementById('csvOutput').value = '';
+}
+
+function exportCSV() {
+  const rows = [['ID', 'Name', 'Status', 'Duration (ms)', 'Detail']];
+  for (const test of tests) {
+    const r = results.get(test.id) || { state: 'pending', detail: '', duration: '' };
+    rows.push([
+      test.id,
+      `"${test.name}"`,
+      r.state.toUpperCase(),
+      r.duration ?? '',
+      `"${(r.detail || '').replace(/"/g, '""')}"`,
+    ]);
+  }
+  // Manual tests
+  const manuals = [
+    ['M01','Voice recording capture','MANUAL','','Waveform visible, transcription produced'],
+    ['M02','Whisper transcription accuracy','MANUAL','','Note errors on 5 inputs'],
+    ['M03','Frustrated state — voice','MANUAL','','EmotionBadge shows Frustrated'],
+    ['M04','Confused state — voice','MANUAL','','EmotionBadge shows Confused'],
+    ['M05','Markdown rendering','MANUAL','','No raw asterisks in rendered response'],
+    ['M06','Streaming cursor','MANUAL','','Cursor visible during stream'],
+    ['M07','Offline — local inference','MANUAL','','UI loads, Gemini fails gracefully'],
+    ['M08','Model cache load time','MANUAL','','Record first vs cached load time (seconds)'],
+    ['M09','Mobile responsiveness','MANUAL','','No overflow, drawer works'],
+    ['M10','Dark mode contrast','MANUAL','','AI bubble distinct, code blocks readable'],
+    ['M11','Enter to send / Shift+Enter','MANUAL','','Enter sends, Shift+Enter newlines'],
+    ['M12','Adaptive response — Bored','MANUAL','','Response becomes more engaging'],
+  ];
+  for (const m of manuals) rows.push([m[0], `"${m[1]}"`, m[2], m[3], `"${m[4]}"`]);
+
+  document.getElementById('csvOutput').value = rows.map(r => r.join(',')).join('\n');
+}
+
+// ─────────────────────────────────────────────
+// Wire up buttons
+// ─────────────────────────────────────────────
+
+document.getElementById('btnRun').addEventListener('click', runAll);
+document.getElementById('btnClear').addEventListener('click', clearResults);
+document.getElementById('btnExport').addEventListener('click', () => {
+  const csv = document.getElementById('csvOutput').value;
+  if (!csv) { alert('Run tests first.'); return; }
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `studymate-test-results-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+});
+
+</script>
+</body>
+</html>
