@@ -45,7 +45,12 @@ export function normalizeTextSentiment(label, score) {
   switch (label?.toLowerCase()) {
     case 'positive': return confidence;
     case 'negative': return -confidence;
-    case 'neutral':  return (confidence - 0.5);
+    case 'neutral':
+      // Neutral must stay near zero regardless of confidence.
+      // AfriBERTa returns confidence=1.0 for "ok"/"yeah" as neutral,
+      // which previously mapped to +0.5 and triggered engaged.
+      // Clamp to [-0.1, +0.1] so neutral never dominates the fused score.
+      return Math.max(-0.1, Math.min(0.1, (confidence - 0.5) * 0.2));
     default:
       console.warn(`⚠️ FusionLayer: Unknown label "${label}", defaulting to 0`);
       return 0;
@@ -66,7 +71,7 @@ export function normalizeTextSentiment(label, score) {
  *   confidence: string
  * }}
  */
-export function fuseModalities(textLabel, textScore, audioScore) {
+export function fuseModalities(textLabel, textScore, audioScore, studentInput = '') {
   // Step 1 — Normalize text sentiment to [-1, +1]
   const normalizedText = normalizeTextSentiment(textLabel, textScore);
 
@@ -77,6 +82,14 @@ export function fuseModalities(textLabel, textScore, audioScore) {
   const fusedScore =
     normalizedText * MODALITY_WEIGHTS.text +
     normalizedAudio * MODALITY_WEIGHTS.audio;
+
+  // Step 4a — Short flat input heuristic (bored detection)
+  // "ok", "yeah", "fine", "k", "sure" etc. are disengagement signals.
+  // AfriBERTa classifies these as neutral with high confidence, which
+  // after normalization stays near zero — correct. But we add an explicit
+  // word-count check so very short non-negative inputs always map to bored.
+  const wordCount = studentInput.trim().split(/\s+/).filter(Boolean).length;
+  const isShortFlatInput = wordCount <= 4 && textLabel?.toLowerCase() !== 'negative';
 
   // Step 4 — Frustrated detection:
   // Triggered when text is strongly negative AND audio energy is elevated.
@@ -97,13 +110,16 @@ export function fuseModalities(textLabel, textScore, audioScore) {
 
   if (isFrustrated) {
     emotionalState = 'frustrated';
+  } else if (isShortFlatInput) {
+    // Short non-negative input ("ok", "yeah", "fine") → always bored
+    emotionalState = 'bored';
   } else if (fusedScore >= THRESHOLDS.ENGAGED_MIN) {
     emotionalState = 'engaged';
   } else if (fusedScore >= THRESHOLDS.BORED_LOWER && fusedScore < THRESHOLDS.BORED_UPPER) {
     // Flat zone — low energy, near-zero sentiment
     emotionalState = 'bored';
   } else {
-    // Moderate negative zone (-0.05 to -0.30) → confused
+    // Moderate negative zone → confused
     emotionalState = 'confused';
   }
 

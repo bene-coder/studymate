@@ -16,22 +16,18 @@ import { fuseModalities } from './fusionLayer';
  * 
  * @param {function} onFusionComplete - Callback fired when both modalities are ready.
  *   Receives: { emotionalState, fusedScore, normalizedText, confidence, sessionId }
- * @param {string} sessionId - Optional ID to correlate results with a specific input event
+ * @param {string} sessionId    - Optional ID to correlate results with a specific input event
+ * @param {string} studentInput - The raw student text, used by the bored short-input heuristic
  */
-export function createFusionCoordinator(onFusionComplete, sessionId = null) {
-  // Internal state — holds partial results until both arrive
+export function createFusionCoordinator(onFusionComplete, sessionId = null, studentInput = '') {
   const state = {
-    audioScore: null,       // From Meyda — arrives first (synchronous)
-    textLabel: null,        // From AfriBERTa — arrives after Whisper transcribes
-    textScore: null,        // AfriBERTa confidence
-    audioReady: false,
-    textReady: false,
+    audioScore:   null,
+    textLabel:    null,
+    textScore:    null,
+    audioReady:   false,
+    textReady:    false,
   };
 
-  /**
-   * Called immediately after Meyda MFCC extraction completes on the main thread.
-   * This always arrives before the text result.
-   */
   function setAudioResult(paralinguisticScore) {
     state.audioScore = paralinguisticScore;
     state.audioReady = true;
@@ -39,9 +35,6 @@ export function createFusionCoordinator(onFusionComplete, sessionId = null) {
     tryFuse();
   }
 
-  /**
-   * Called when AfriBERTa worker posts a RESULT message back to the main thread.
-   */
   function setTextResult(label, score) {
     state.textLabel = label;
     state.textScore = score;
@@ -50,33 +43,25 @@ export function createFusionCoordinator(onFusionComplete, sessionId = null) {
     tryFuse();
   }
 
-  /**
-   * Attempts fusion. Only executes when both modalities have reported in.
-   * Safe to call multiple times — will only fire onFusionComplete once.
-   */
   function tryFuse() {
     if (!state.audioReady || !state.textReady) return;
 
-    const result = fuseModalities(state.textLabel, state.textScore, state.audioScore);
+    // Pass studentInput so fusionLayer can apply the short-input bored heuristic
+    const result = fuseModalities(
+      state.textLabel,
+      state.textScore,
+      state.audioScore,
+      studentInput,
+    );
 
-    onFusionComplete({
-      ...result,
-      sessionId
-    });
+    onFusionComplete({ ...result, sessionId });
   }
 
-  /**
-   * Fallback: if audio never arrives (e.g. mic permission denied),
-   * call this to proceed with text-only using a neutral audio score.
-   */
   function setAudioFallback() {
     console.warn(`⚠️ Coordinator [${sessionId}]: Using audio fallback (score=0)`);
     setAudioResult(0);
   }
 
-  /**
-   * Fallback: if AfriBERTa fails, proceed with audio-only using a neutral text result.
-   */
   function setTextFallback() {
     console.warn(`⚠️ Coordinator [${sessionId}]: Using text fallback (neutral, 0.5)`);
     setTextResult('neutral', 0.5);
@@ -86,6 +71,6 @@ export function createFusionCoordinator(onFusionComplete, sessionId = null) {
     setAudioResult,
     setTextResult,
     setAudioFallback,
-    setTextFallback
+    setTextFallback,
   };
 }

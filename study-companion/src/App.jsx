@@ -391,17 +391,17 @@ export default function App() {
   // INPUT HANDLERS
   // ============================================================
   const beginNewCoordinator = (sessionId) => {
-    coordinatorRef.current = createFusionCoordinator(handleFusionComplete, sessionId);
+  coordinatorRef.current = createFusionCoordinator(handleFusionComplete, sessionId, input);
   };
 
   const handleStartRecording = () => {
-    beginNewCoordinator(`turn-${Date.now()}`);
-    setIsProcessing(true);
-    startRecording();
+     beginNewCoordinator(`turn-${Date.now()}`, ''); 
+  setIsProcessing(true);
+  startRecording();
   };
 
   const handleSubmitText = (text) => {
-    beginNewCoordinator(`turn-${Date.now()}`);
+    beginNewCoordinator(`turn-${Date.now()}`, text);
     coordinatorRef.current.setAudioFallback();
 
     latestStudentInputRef.current = text;
