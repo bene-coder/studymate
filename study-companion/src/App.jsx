@@ -338,6 +338,7 @@ export default function App() {
 
       if (type === 'AUDIO_WORKER_ALIVE' || type === 'READY' || type === 'WHISPER_READY') {
         setIsReady(prev => ({ ...prev, whisper: true }));
+        emotionWorkerRef.current?.postMessage({ type: 'INIT' });
       }
 
       if (type === 'TRANSCRIPTION_RESULT') {

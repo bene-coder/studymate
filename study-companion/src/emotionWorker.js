@@ -76,18 +76,22 @@ async function getClassifier() {
 }
 
 // Boot — start loading immediately on worker spawn
-getClassifier().catch((error) => {
-  isLoading = false;
-  console.error('❌ AfriBERTa failed to load:', error);
-  self.postMessage({
-    type: 'AFRIBERTA_STATUS',
-    status: 'ERROR',
-    message: error.message,
-  });
-});
-
 self.addEventListener('message', async (event) => {
   const { type, text } = event.data;
+
+  // Whisper signals it's ready — now safe to load AfriBERTa
+  if (type === 'INIT') {
+    getClassifier().catch((error) => {
+      isLoading = false;
+      console.error('❌ AfriBERTa failed to load:', error);
+      self.postMessage({
+        type: 'AFRIBERTA_STATUS',
+        status: 'ERROR',
+        message: error.message,
+      });
+    });
+    return;
+  }
 
   if (type === 'START_CLASSIFICATION' || type === 'TRANSCRIPTION_RESULT') {
     try {
