@@ -215,7 +215,7 @@ export default function App() {
     setSessionTopic(topic);
     setShowTopicPrompt(false);
     if (activeSessionId && topic.trim()) {
-      // Import updateSessionTopic lazily to avoid a circular dep concern — 
+      // Import updateSessionTopic lazily to avoid a circular dep concern —
       // it's a thin wrapper around db.sessions.update.
       const { updateSessionTopic } = await import('./db/db');
       await updateSessionTopic(activeSessionId, topic.trim());
@@ -390,14 +390,19 @@ export default function App() {
   // ============================================================
   // INPUT HANDLERS
   // ============================================================
-  const beginNewCoordinator = (sessionId) => {
-  coordinatorRef.current = createFusionCoordinator(handleFusionComplete, sessionId, input);
+  // FIX: beginNewCoordinator was missing its second parameter — callers
+  // passed a studentInput argument (either '' for voice or the typed text)
+  // but the function signature only declared `sessionId`, and the body
+  // referenced an undeclared `input` identifier, throwing
+  // "ReferenceError: input is not defined" on every call.
+  const beginNewCoordinator = (sessionId, studentInput) => {
+    coordinatorRef.current = createFusionCoordinator(handleFusionComplete, sessionId, studentInput);
   };
 
   const handleStartRecording = () => {
-     beginNewCoordinator(`turn-${Date.now()}`, ''); 
-  setIsProcessing(true);
-  startRecording();
+    beginNewCoordinator(`turn-${Date.now()}`, '');
+    setIsProcessing(true);
+    startRecording();
   };
 
   const handleSubmitText = (text) => {
