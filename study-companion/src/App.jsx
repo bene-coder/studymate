@@ -35,8 +35,15 @@ export default function App() {
   // ============================================================
   // ENGINE READINESS
   // ============================================================
-  const [isReady, setIsReady] = useState({ whisper: false, afriberta: false });
-  const modelsReady = isReady.whisper && isReady.afriberta;
+  // Only AfriBERTa loads at boot — it is all a typed message needs.
+  // Whisper (voice) is loaded on demand the first time the mic is tapped.
+  const [isReady, setIsReady] = useState({ afriberta: false });
+  const modelsReady = isReady.afriberta;
+
+  // 'idle' | 'loading' | 'ready' | 'error' — a ref because the worker's
+  // onmessage handler must always read the current value, not a stale closure.
+  const whisperStatusRef = useRef('idle');
+  const voiceNoticeIdRef = useRef(null);
 
   // ============================================================
   // SESSION + MESSAGE STATE
@@ -161,6 +168,18 @@ export default function App() {
     if (!activeSessionId) return;
     await addMessage(activeSessionId, message);
   }, [activeSessionId]);
+
+  // Status line shown in the chat while the voice model loads. It is local
+  // only (never written to the DB), so it stays out of the CSV export.
+  const startVoiceNotice = useCallback((content) => {
+    voiceNoticeIdRef.current = appendMessage({ role: 'assistant', content }).id;
+  }, [appendMessage]);
+
+  const updateVoiceNotice = useCallback((content) => {
+    const noticeId = voiceNoticeIdRef.current;
+    if (!noticeId) return;
+    setMessages(prev => prev.map(m => (m.id === noticeId ? { ...m, content } : m)));
+  }, []);
 
   // ============================================================
   // SESSION NAVIGATION
@@ -334,10 +353,13 @@ export default function App() {
     );
 
     audioWorkerRef.current.onmessage = (event) => {
-      const { type, text, message } = event.data;
+      const { type, text, message, phase } = event.data;
 
-      if (type === 'AUDIO_WORKER_ALIVE' || type === 'READY' || type === 'WHISPER_READY') {
-        setIsReady(prev => ({ ...prev, whisper: true }));
+      // AUDIO_WORKER_ALIVE only means the worker script booted — no model is
+      // loaded at that point, so it must not flip any "ready" flag.
+      if (type === 'WHISPER_READY') {
+        whisperStatusRef.current = 'ready';
+        updateVoiceNotice('Voice input is ready — tap the mic to speak.');
       }
 
       if (type === 'TRANSCRIPTION_RESULT') {
@@ -350,6 +372,17 @@ export default function App() {
 
       if (type === 'WHISPER_ERROR' || type === 'ERROR') {
         console.error('Whisper error:', message);
+
+        // The model failed to download/initialise. No turn is in flight, so
+        // skip the transcription recovery below and just let the student retry.
+        if (phase === 'init') {
+          whisperStatusRef.current = 'error';
+          updateVoiceNotice(
+            "Couldn't load voice input — check your connection and tap the mic to try again, or type your question."
+          );
+          return;
+        }
+
         if (message?.includes('No speech detected')) {
           appendMessage({
             role: 'assistant',
@@ -385,7 +418,7 @@ export default function App() {
       audioWorkerRef.current?.terminate();
       emotionWorkerRef.current?.terminate();
     };
-  }, [appendMessage]);
+  }, [appendMessage, updateVoiceNotice]);
 
   // ============================================================
   // INPUT HANDLERS
@@ -399,7 +432,23 @@ export default function App() {
     coordinatorRef.current = createFusionCoordinator(handleFusionComplete, sessionId, studentInput);
   };
 
+  // First mic tap: download Whisper (one time), and don't record yet. Recording
+  // while the model loads would leave the 25s pipeline safety net firing
+  // fallbacks mid-download, so the student taps again once voice is ready.
+  const requestWhisper = () => {
+    if (whisperStatusRef.current === 'loading') return; // already on its way
+    whisperStatusRef.current = 'loading';
+    startVoiceNotice(
+      'Loading voice input for the first time — this is a one-time download. You can keep typing in the meantime.'
+    );
+    audioWorkerRef.current?.postMessage({ type: 'INIT_WHISPER' });
+  };
+
   const handleStartRecording = () => {
+    if (whisperStatusRef.current !== 'ready') {
+      requestWhisper();
+      return;
+    }
     beginNewCoordinator(`turn-${Date.now()}`, '');
     setIsProcessing(true);
     startRecording();

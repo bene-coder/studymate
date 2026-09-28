@@ -43,6 +43,7 @@ async function getClassifier() {
     'text-classification',
     MODEL_ID,
     {
+      dtype: 'q4',
       progress_callback: (progress) => {
         if (progress.status === 'initiate') {
           self.postMessage({

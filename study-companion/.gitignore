@@ -23,4 +23,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
 public/models/sentiment/onnx/model_quantized.onnx
+public/models/sentiment/onnx/model_q4.onnx
+
+study-companion\public\models\sentiment\onnx\model_q4.onnx
+*.onnx
